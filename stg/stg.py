@@ -53,26 +53,27 @@ class STG(IRC2):
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes=None):
-        self._whenNotPaused()
+        self._when_not_paused()
+        self._only_positive(_value)
 
         super().transfer(_to, _value, _data)
 
     @external(readonly=True)
-    def allowance(self, _owner: Address, _spender: Address):
+    def allowance(self, _owner: Address, _spender: Address) -> int:
         return self._allowed[_owner][_spender]
 
     @external
     def approve(self, _spender: Address, _value: int):
-        self._whenNotPaused()
-        self._whenNotContract(_spender)
+        self._when_not_paused()
+        self._only_positive(_value)
 
         self._allowed[self.msg.sender][_spender] = _value
         self.Approval(self.msg.sender, _spender, _value)
 
     @external
     def inc_allowance(self, _spender: Address, _value: int):
-        self._whenNotPaused()
-        self._whenNotContract(_spender)
+        self._when_not_paused()
+        self._only_positive(_value)
 
         self._allowed[self.msg.sender][_spender] = self._allowed[self.msg.sender][_spender] + _value
 
@@ -80,8 +81,8 @@ class STG(IRC2):
 
     @external
     def dec_allowance(self, _spender: Address, _value: int):
-        self._whenNotPaused()
-        self._whenNotContract(_spender)
+        self._when_not_paused()
+        self._only_positive(_value)
 
         self._allowed[self.msg.sender][_spender] = self._allowed[self.msg.sender][_spender] - _value
 
@@ -89,80 +90,81 @@ class STG(IRC2):
 
     @external
     def transfer_from(self, _from: Address, _to: Address, _value: int):
-        self._whenNotPaused()
-        self._whenAllowed(_from, _value)
+        self._when_not_paused()
+        self._when_allowed(_from, _value)
+        self._only_positive(_value)
 
         self._allowed[_from][self.msg.sender] = self._allowed[_from][self.msg.sender] - _value
 
-        self._tranfer(_from, _to, _value, None)
+        self._transfer(_from, _to, _value, b'')
 
     @external
     def mint(self, _amount: int):
-        self._onlyOwner()
-        self._mint(self.msg.sender, _amount)
+        self._only_owner()
+        self._only_positive(_amount)
+
+        self._total_supply.set(self._total_supply.get() + _amount)
+        self._balances[self.msg.sender] = self._balances[self.msg.sender] + _amount
+        self.Transfer(self.address, self.msg.sender, _amount, b'Minted')
 
     @external
     def burn(self, _amount: int):
-        self._burn(self.msg.sender, _amount)
+        self._only_positive(_amount)
+        self._has_enough_balance(self.msg.sender, _amount)
+
+        self._total_supply.set(self._total_supply.get() - _amount)
+        self._balances[self.msg.sender] = self._balances[self.msg.sender] - _amount
+        self.Transfer(self.msg.sender, self.address, _amount, b'Burned')
 
     @external
     def pause(self):
-        self._onlyOwner()
+        self._only_owner()
 
         self._paused.set(1)
         self.Paused()
 
     @external
     def unpause(self):
-        self._onlyOwner()
+        self._only_owner()
 
         self._paused.set(0)
         self.Unpaused()
 
     @external(readonly=True)
-    def paused(self):
+    def paused(self) -> int:
         return self._paused.get()
 
     @external
     def set_blacklist(self, _account: Address, _value: int):
-        self._onlyOwner()
+        self._only_owner()
 
         self._blacklist[_account] = _value
         self.Blacklist(_account, _value)
 
     @external
     def set_whitelist(self, _account: Address, _value: int):
-        self._onlyOwner()
+        self._only_owner()
 
         self._whitelist[_account] = _value
         self.Whitelist(_account, _value)
 
-    def _mint(self, _account: Address, _amount: int):
-        self._total_supply.set(self._total_supply.get() + _amount)
-        self._balances[_account] = self._balances[_account] + _amount
-        self.Transfer(0, _account, _value, None)
+    def _only_positive(self, _value: int):
+        if _value < 0:
+            self.revert("Only the positive value allowed")
 
-    def _burn(self, _account: Address, _amount: int):
+    def _has_enough_balance(self, _account: Address, _amount: int):
         if _amount > self._balances[_account]:
             self.revert("Out of balance")
 
-        self._total_supply.set(self._total_supply.get() - _amount)
-        self._balances[_account] = self._balances[_account] - _amount
-        self.Transfer(_account, 0, _amount, None)
+    def _only_owner(self):
+        if self.owner != self.msg.sender:
+            self.revert("Only the owner is allowed")
 
-    def _onlyOwner(self):
-        if self.owner != self.msg.sender
-            self.revert("Only owner is allowed")
-
-    def _whenNotContract(_spender: Address):
-        if _spender == 0:
-            self.revert("spender is contract address")
-
-    def _whenAllowed(self, _from: Address, _value: int):
-        if _value > self._allowed[_from][self.msg_sender]:
+    def _when_allowed(self, _from: Address, _value: int):
+        if _value > self._allowed[_from][self.msg.sender]:
             self.revert("_value is more than allowed")
 
-    def _whenNotPaused(self):
+    def _when_not_paused(self):
         if self._paused.get() == 1 and self._whitelist[self.msg.sender] == 0:
             self.revert("Paused")
 

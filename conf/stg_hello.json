@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "method": "icx_call",
+  "params": {
+    "from": "hxf6ccadc18a4f4902e03b8fced09dd8cfdac2e005",
+    "to": "cx40ba15981ad7b0d7db0ebbaa01280cf8495cec34",
+    "dataType": "call",
+    "data": {
+        "method": "hello"
+    }
+  },
+  "id": 1
+}

@@ -10,4 +10,4 @@ echo "ICON_ENDPOINT : $ICON_ENDPOINT"
 
 export ICON_ENDPOINT=$ICON_ENDPOINT
 
-python -m unittest discover
+cd ..;python -m unittest discover

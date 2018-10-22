@@ -105,7 +105,7 @@ class ACT(IRC2):
 
         self._total_supply.set(self._total_supply.get() + _amount)
         self._balances[_to] = self._balances[_to] + _amount
-        self.Transfer(self.address, self.msg.sender, _amount, b'Minted')
+        self.Transfer(self.address, _to, _amount, b'Minted')
 
     @external
     def burn(self, _amount: int):

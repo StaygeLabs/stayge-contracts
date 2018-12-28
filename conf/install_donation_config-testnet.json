@@ -1,0 +1,17 @@
+{
+    "uri": "https://bicon.net.solidwallet.io/api/v3",
+    "nid": "0x3",
+    "keyStore": null,
+    "from": "hxf6ccadc18a4f4902e03b8fced09dd8cfdac2e005",
+    "to": "cx0000000000000000000000000000000000000000",
+    "stepLimit": "0x77359400",
+    "deploy": {
+        "contentType": "tbears",
+        "mode": "install",
+        "scoreParams": {
+            "name": "[DEV]2018 STAYGE's Donation Project"
+        }
+    },
+    "txresult": {},
+    "transfer": {}
+}

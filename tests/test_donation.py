@@ -80,7 +80,8 @@ class TestACT(unittest.TestCase):
 
         if icon_endpoint == 'testnet':
             cls.icon_service = IconService(HTTPProvider('https://bicon.net.solidwallet.io/api/v3'))
-            cls.donation_address = 'cxf748d371e3de681a91edebb0959acfbe6b5f3735'
+            # cls.donation_address = 'cxf748d371e3de681a91edebb0959acfbe6b5f3735'
+            cls.donation_address = 'cx55cd423531e4b49f8276f5e1c7d457f7794a5971'
             cls.act_kard_score_address = 'cx3d85fc30097cb8b18eb52de927b444833c690705'
             cls.act_ace_score_address = 'cxdccbc7ee2d5581e62c8ba300219a5e8d05b58215'
         else:
@@ -120,11 +121,22 @@ class TestACT(unittest.TestCase):
         print('closed = {}'.format(bool(int(result, 16))))
         #self.assertTrue(int(result, 16) >= 0)
 
+    '''
     def test_open(self):
         txresult = call_transaction(\
             self.donation_address,\
             self.owner_wallet,\
             'open_donation',\
+            {}
+        )
+        print('txresult = [{}] {}'.format(type(txresult), txresult))
+    '''
+
+    def test_close(self):
+        txresult = call_transaction(\
+            self.donation_address,\
+            self.owner_wallet,\
+            'close_donation',\
             {}
         )
         print('txresult = [{}] {}'.format(type(txresult), txresult))

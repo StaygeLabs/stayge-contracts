@@ -14,6 +14,10 @@ class Donation(IconScoreBase):
     def Donate(self, _from: Address, _to: Address, _value: int, _data: bytes):
         pass
 
+    @eventlog(indexed=3)
+    def Refund(self, _community: Address, _to: Address, _value: int, _data: bytes):
+        pass
+
     @eventlog
     def DonationOpened(self):
         pass
@@ -29,6 +33,7 @@ class Donation(IconScoreBase):
         self._closed = VarDB('closed', db, value_type=bool)
 
         self._donation_details = DictDB('_donation_details', db, value_type=int, depth=2)
+        self._refund_details = DictDB('_refund_details', db, value_type=int, depth=2)
         self._community_donations = DictDB('community_donations', db, value_type=int)
         self._artist_donations = DictDB('artist_donations', db, value_type=int)
         self._communities = ArrayDB('communities', db, value_type=str)
@@ -107,7 +112,6 @@ class Donation(IconScoreBase):
 
     @external(readonly=True)
     def donation_details(self, _userAddr: Address) -> list:
-
         output = []
         for c in self._communities:
             community_addr = Address.from_string(c)
@@ -117,6 +121,21 @@ class Donation(IconScoreBase):
                 act_token = self.create_interface_score(community_addr, ActToken)
                 item['community_name'] = act_token.name()
                 item['donation_amt'] = str(self._donation_details[_userAddr][community_addr])
+                output.append(item)
+
+        return output
+
+    @external(readonly=True)
+    def refund_details(self, _userAddr: Address) -> list:
+        output = []
+        for c in self._communities:
+            community_addr = Address.from_string(c)
+            if self._refund_details[_userAddr][community_addr] > 0:
+                item = {}
+                item['artist_name'] = self._community_artist[community_addr]
+                act_token = self.create_interface_score(community_addr, ActToken)
+                item['community_name'] = act_token.name()
+                item['refund_amt'] = str(self._refund_details[_userAddr][community_addr])
                 output.append(item)
 
         return output
@@ -152,6 +171,21 @@ class Donation(IconScoreBase):
         self.Donate(_from, self.msg.sender, _value, _data)
 
     @external
+    def refund(self, _community: Address, _to: Address, _value: int, _data: bytes):
+        self._only_owner()
+        self._only_positive(_value)
+
+        if self._donation_details[_to][_community] - self._refund_details[_to][_community] < _value:
+            self.revert("Can't refund more than the donation amount")
+
+        act_token = self.create_interface_score(_community, ActToken)
+
+        self._refund_details[_to][_community] += _value
+        self.Refund(_community, _to, _value, _data)
+
+        act_token.transfer(_to, _value, _data)
+
+    @external
     def open_donation(self):
         self._only_owner()
 
@@ -172,6 +206,10 @@ class Donation(IconScoreBase):
     def _when_opened(self):
         if self._closed.get():
             self.revert("Donation closed")
+
+    def _when_closed(self):
+        if not self._closed.get():
+            self.revert("Donation not closed")
 
     def _only_owner(self):
         if self.owner != self.msg.sender:

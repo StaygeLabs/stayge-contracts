@@ -7,6 +7,10 @@ class ActToken(InterfaceScore):
     def name(self) -> str:
         pass
 
+    @interface
+    def transfer(self, _to: Address, _value: int, _data: bytes=None):
+        pass
+
 
 class Donation(IconScoreBase):
 

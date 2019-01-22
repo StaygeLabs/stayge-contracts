@@ -3,7 +3,7 @@
     "nid": "0x3",
     "keyStore": null,
     "from": "hxf6ccadc18a4f4902e03b8fced09dd8cfdac2e005",
-    "to": "cxbb3ba82aee16f8d0ed3dc536bf95857149fdc5c1",
+    "to": "cx55cd423531e4b49f8276f5e1c7d457f7794a5971",
     "stepLimit": "0x77359400",
     "deploy": {
         "contentType": "tbears",

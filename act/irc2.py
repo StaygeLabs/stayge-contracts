@@ -70,7 +70,6 @@ class IRC2(IconScoreBase):
     def balanceOf(self, _owner: Address) -> int:
         return self._balances[_owner]
 
-    @external
     def transfer(self, _to: Address, _value: int, _data: bytes=None):
         if _data is None:
             _data = b'None'

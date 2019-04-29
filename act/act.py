@@ -9,6 +9,7 @@ class ACT(IRC2):
     _PAUSED = 'paused'
     _BLACKLIST = 'blacklist'
     _WHITELIST = 'whitelist'
+    EOA_ZERO = Address.from_string('hx' + '0' * 40)
 
     @eventlog(indexed=3)
     def Approval(self, _owner: Address, _spender: Address, _value: int):
@@ -53,7 +54,7 @@ class ACT(IRC2):
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes=None):
-        self._when_not_paused()
+        self._when_not_paused(self.msg.sender, _to)
         self._only_positive(_value)
 
         super().transfer(_to, _value, _data)
@@ -64,15 +65,15 @@ class ACT(IRC2):
 
     @external
     def approve(self, _spender: Address, _value: int):
-        self._when_not_paused()
-        self._only_positive(_value)
+        self._when_not_paused(self.msg.sender, _spender)
+        self._only_nonnegative(_value)
 
         self._allowed[self.msg.sender][_spender] = _value
         self.Approval(self.msg.sender, _spender, _value)
 
     @external
     def inc_allowance(self, _spender: Address, _value: int):
-        self._when_not_paused()
+        self._when_not_paused(self.msg.sender, _spender)
         self._only_positive(_value)
 
         self._allowed[self.msg.sender][_spender] = self._allowed[self.msg.sender][_spender] + _value
@@ -81,8 +82,11 @@ class ACT(IRC2):
 
     @external
     def dec_allowance(self, _spender: Address, _value: int):
-        self._when_not_paused()
+        self._when_not_paused(self.msg.sender, _spender)
         self._only_positive(_value)
+
+        if self._allowed[self.msg.sender][_spender] < _value:
+            self.revert("The allowance can be negative")
 
         self._allowed[self.msg.sender][_spender] = self._allowed[self.msg.sender][_spender] - _value
 
@@ -90,7 +94,7 @@ class ACT(IRC2):
 
     @external
     def transfer_from(self, _from: Address, _to: Address, _value: int):
-        self._when_not_paused()
+        self._when_not_paused(_from, _to)
         self._when_allowed(_from, _value)
         self._only_positive(_value)
 
@@ -105,7 +109,7 @@ class ACT(IRC2):
 
         self._total_supply.set(self._total_supply.get() + _amount)
         self._balances[_to] = self._balances[_to] + _amount
-        self.Transfer(self.address, _to, _amount, b'Minted')
+        self.Transfer(self.EOA_ZERO, _to, _amount, b'Minted')
 
     @external
     def burn(self, _amount: int):
@@ -114,7 +118,7 @@ class ACT(IRC2):
 
         self._total_supply.set(self._total_supply.get() - _amount)
         self._balances[self.msg.sender] = self._balances[self.msg.sender] - _amount
-        self.Transfer(self.msg.sender, self.address, _amount, b'Burned')
+        self.Transfer(self.msg.sender, self.EOA_ZERO, _amount, b'Burned')
 
     @external
     def pause(self):
@@ -149,8 +153,12 @@ class ACT(IRC2):
         self.Whitelist(_account, _value)
 
     def _only_positive(self, _value: int):
-        if _value < 0:
+        if _value <= 0:
             self.revert("Only the positive value allowed")
+
+    def _only_nonnegative(self, _value: int):
+        if _value < 0:
+            self.revert("Only the nonnegative value allowed")
 
     def _has_enough_balance(self, _account: Address, _amount: int):
         if _amount > self._balances[_account]:
@@ -164,9 +172,9 @@ class ACT(IRC2):
         if _value > self._allowed[_from][self.msg.sender]:
             self.revert("_value is more than allowed")
 
-    def _when_not_paused(self):
-        if self._paused.get() == 1 and self._whitelist[self.msg.sender] == 0:
+    def _when_not_paused(self, _from: Address, _to: Address):
+        if self._paused.get() == 1 and (self._whitelist[_from] == 0 or self._whitelist[_to] == 0):
             self.revert("Paused")
 
-        if self._paused.get() == 0 and self._blacklist[self.msg.sender] == 1:
+        if self._paused.get() == 0 and (self._blacklist[_from] == 1 or self._blacklist[_to] == 1):
             self.revert("Paused")

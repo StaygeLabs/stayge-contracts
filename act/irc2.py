@@ -38,6 +38,9 @@ class IRC2(IconScoreBase):
 
         super().on_install()
 
+        if decimals > 77:
+            self.revert("decimals is too big to operate")
+
         total_supply = initialSupply * 10 ** decimals
         Logger.debug(f'on_install: total_supply={total_supply}', TAG)
 

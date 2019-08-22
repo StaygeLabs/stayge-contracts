@@ -9,6 +9,7 @@ class ACT(IRC2):
     _PAUSED = 'paused'
     _BLACKLIST = 'blacklist'
     _WHITELIST = 'whitelist'
+    _FEE_WHITELIST = 'fee_whitelist'
     EOA_ZERO = Address.from_string('hx' + '0' * 40)
 
     @eventlog(indexed=3)
@@ -38,6 +39,9 @@ class ACT(IRC2):
         self._blacklist = DictDB(self._BLACKLIST, db, value_type=int)
         self._whitelist = DictDB(self._WHITELIST, db, value_type=int)
 
+        self._fee_whitelist = DictDB(self._FEE_WHITELIST, db, value_type=int)
+
+
     def on_install(
         self,
         name: str,
@@ -56,6 +60,7 @@ class ACT(IRC2):
     def transfer(self, _to: Address, _value: int, _data: bytes=None):
         self._when_not_paused(self.msg.sender, _to)
         self._only_positive(_value)
+        self._set_fee_sharing()
 
         super().transfer(_to, _value, _data)
 
@@ -67,6 +72,7 @@ class ACT(IRC2):
     def approve(self, _spender: Address, _value: int):
         self._when_not_paused(self.msg.sender, _spender)
         self._only_nonnegative(_value)
+        self._set_fee_sharing()
 
         self._allowed[self.msg.sender][_spender] = _value
         self.Approval(self.msg.sender, _spender, _value)
@@ -75,6 +81,7 @@ class ACT(IRC2):
     def inc_allowance(self, _spender: Address, _value: int):
         self._when_not_paused(self.msg.sender, _spender)
         self._only_positive(_value)
+        self._set_fee_sharing()
 
         self._allowed[self.msg.sender][_spender] = self._allowed[self.msg.sender][_spender] + _value
 
@@ -88,6 +95,8 @@ class ACT(IRC2):
         if self._allowed[self.msg.sender][_spender] < _value:
             self.revert("The allowance can be negative")
 
+        self._set_fee_sharing()
+
         self._allowed[self.msg.sender][_spender] = self._allowed[self.msg.sender][_spender] - _value
 
         self.Approval(self.msg.sender, _spender, self._allowed[self.msg.sender][_spender])
@@ -97,6 +106,7 @@ class ACT(IRC2):
         self._when_not_paused(_from, _to)
         self._when_allowed(_from, _value)
         self._only_positive(_value)
+        self._set_fee_sharing()
 
         self._allowed[_from][self.msg.sender] = self._allowed[_from][self.msg.sender] - _value
 
@@ -106,6 +116,7 @@ class ACT(IRC2):
     def mint(self, _to: Address, _amount: int):
         self._only_owner()
         self._only_positive(_amount)
+        self._set_fee_sharing()
 
         self._total_supply.set(self._total_supply.get() + _amount)
         self._balances[_to] = self._balances[_to] + _amount
@@ -115,6 +126,7 @@ class ACT(IRC2):
     def burn(self, _amount: int):
         self._only_positive(_amount)
         self._has_enough_balance(self.msg.sender, _amount)
+        self._set_fee_sharing()
 
         self._total_supply.set(self._total_supply.get() - _amount)
         self._balances[self.msg.sender] = self._balances[self.msg.sender] - _amount
@@ -123,6 +135,7 @@ class ACT(IRC2):
     @external
     def pause(self):
         self._only_owner()
+        self._set_fee_sharing()
 
         self._paused.set(1)
         self.Paused()
@@ -130,6 +143,7 @@ class ACT(IRC2):
     @external
     def unpause(self):
         self._only_owner()
+        self._set_fee_sharing()
 
         self._paused.set(0)
         self.Unpaused()
@@ -141,6 +155,7 @@ class ACT(IRC2):
     @external
     def set_blacklist(self, _account: Address, _value: int):
         self._only_owner()
+        self._set_fee_sharing()
 
         self._blacklist[_account] = _value
         self.Blacklist(_account, _value)
@@ -148,9 +163,22 @@ class ACT(IRC2):
     @external
     def set_whitelist(self, _account: Address, _value: int):
         self._only_owner()
+        self._set_fee_sharing()
 
         self._whitelist[_account] = _value
         self.Whitelist(_account, _value)
+
+    @external(readonly=True)
+    def get_proportion(self, _address: Address) -> int:
+        return self._fee_whitelist[_address]
+
+    @external
+    def add_fee_whitelist(self, _address: Address, _proportion: int = 100):
+        self._only_owner()
+        self._check_proportion(_proportion)
+        self._set_fee_sharing()
+
+        self._fee_whitelist[_address] = _proportion
 
     def _only_positive(self, _value: int):
         if _value <= 0:
@@ -178,3 +206,12 @@ class ACT(IRC2):
 
         if self._paused.get() == 0 and (self._blacklist[_from] == 1 or self._blacklist[_to] == 1):
             self.revert("Paused")
+
+    def _set_fee_sharing(self):
+        proportion: int = self._fee_whitelist[self.tx.origin]
+        self.set_fee_sharing_proportion(proportion)
+
+    @staticmethod
+    def _check_proportion(_proportion: int):
+        if not (0 <= _proportion <= 100):
+            revert(f"Invalid proportion: {_proportion}")

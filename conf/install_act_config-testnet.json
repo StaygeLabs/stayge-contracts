@@ -1,0 +1,20 @@
+{
+    "uri": "https://bicon.net.solidwallet.io/api/v3",
+    "nid": "0x3",
+    "keyStore": "test_owner.keystore",
+    "from": "hxf6ccadc18a4f4902e03b8fced09dd8cfdac2e005",
+    "to": "cx0000000000000000000000000000000000000000",
+    "stepLimit": "0x77359400",
+    "deploy": {
+        "contentType": "zip",
+        "mode": "install",
+        "scoreParams": {
+            "name": "ACT",
+            "symbol": "ACT",
+            "initialSupply": "0x0",
+            "decimals": "0x12"
+        }
+    },
+    "txresult": {},
+    "transfer": {}
+}
